@@ -1,0 +1,6 @@
+ conda activate backend_app_gestion_citas 
+# instala dependencias (usar pip dentro del entorno conda es lo más simple)
+pip install fastapi "uvicorn[standard]" sqlalchemy pymysql python-dotenv pydantic-settings
+
+# opcional (migraciones, CORS):
+pip install alembic "fastapi[all]"
