@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     DB_PORT: int = Field(default=3306)
     DB_NAME: str = Field(...)
     DB_ECHO: bool = Field(default=False)
-    API_PREFIX: str = Field(default="/api")
+    API_PREFIX: str = Field(default="/api/v1")
 
     @property
     def sqlalchemy_database_uri(self) -> str:

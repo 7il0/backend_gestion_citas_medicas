@@ -7,6 +7,13 @@ class DoctorCreate(BaseModel):
     work_end_hour: int = Field(ge=0, le=23, default=17)
     slot_minutes: int = Field(ge=5, le=180, default=30)
 
+class DoctorUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=1, max_length=150)
+    specialty_id: int | None = None
+    work_start_hour: int | None = Field(default=None, ge=0, le=23)
+    work_end_hour: int | None = Field(default=None, ge=0, le=23)
+    slot_minutes: int | None = Field(default=None, ge=5, le=180)
+
 class DoctorOut(BaseModel):
     id: int
     full_name: str

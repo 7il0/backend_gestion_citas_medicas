@@ -5,7 +5,7 @@ from datetime import datetime, date, time, timedelta
 from app.db.session import SessionLocal
 from app.models.doctor import Doctor
 from app.models.appointment import Appointment
-from app.schemas.doctor import DoctorCreate, DoctorOut
+from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorOut
 from app.schemas.availability import AvailabilityOut, Slot
 
 router = APIRouter(prefix="/medicos", tags=["medicos"])
@@ -32,6 +32,13 @@ def create_doctor(payload: DoctorCreate, db: Session = Depends(get_db)):
 @router.get("", response_model=list[DoctorOut])
 def list_doctors(db: Session = Depends(get_db)):
     return db.query(Doctor).order_by(Doctor.full_name.asc()).all()
+
+@router.get("/{doctor_id}", response_model=DoctorOut)
+def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
+    doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+    if not doctor:
+        raise HTTPException(404, "Médico no encontrado")
+    return doctor
 
 @router.get("/{doctor_id}/disponibilidad", response_model=AvailabilityOut)
 def doctor_availability(doctor_id: int, fecha: str = Query(..., description="YYYY-MM-DD"),
@@ -66,3 +73,35 @@ def doctor_availability(doctor_id: int, fecha: str = Query(..., description="YYY
         cur = cur_end
 
     return AvailabilityOut(doctor_id=doctor_id, date=fecha, slots=slots)
+
+@router.put("/{doctor_id}", response_model=DoctorOut)
+def update_doctor(doctor_id: int, payload: DoctorUpdate, db: Session = Depends(get_db)):
+    doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+    if not doctor:
+        raise HTTPException(404, "Médico no encontrado")
+    
+    # Validar horarios si se están actualizando
+    work_start = payload.work_start_hour if payload.work_start_hour is not None else doctor.work_start_hour
+    work_end = payload.work_end_hour if payload.work_end_hour is not None else doctor.work_end_hour
+    
+    if work_end <= work_start:
+        raise HTTPException(400, "work_end_hour debe ser mayor a work_start_hour")
+    
+    # Actualizar solo los campos que no son None
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(doctor, field, value)
+    
+    db.commit()
+    db.refresh(doctor)
+    return doctor
+
+@router.delete("/{doctor_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_doctor(doctor_id: int, db: Session = Depends(get_db)):
+    doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+    if not doctor:
+        raise HTTPException(404, "Médico no encontrado")
+    
+    db.delete(doctor)
+    db.commit()
+    return None

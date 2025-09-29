@@ -9,13 +9,26 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API Gestión de Citas", version="1.0.0")
 
-# CORS (ajusta origins según tu frontend)
+# CORS - Configuración para desarrollo y producción
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # cambia por ["http://localhost:4200"] si prefieres
+    allow_origins=[
+        "http://localhost:4200",  # Angular dev server
+        "http://localhost:3000",  # React dev server
+        "http://127.0.0.1:4200",  # Angular dev server (127.0.0.1)
+        "http://127.0.0.1:3000",  # React dev server (127.0.0.1)
+        "*"  # Permite todos los orígenes (para desarrollo)
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+    ],
 )
 
 app.include_router(api_router, prefix=settings.API_PREFIX)
