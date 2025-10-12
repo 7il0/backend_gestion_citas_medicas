@@ -1,19 +1,19 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
-from app.db.session import SessionLocal
+from app.core.deps import get_db, get_current_active_user
 from app.models.patient import Patient
+from app.models.user import User
 from app.schemas.patient import PatientCreate, PatientUpdate, PatientOut
 
 router = APIRouter(prefix="/pacientes", tags=["pacientes"])
 
-def get_db():
-    db = SessionLocal()
-    try: yield db
-    finally: db.close()
-
 @router.post("", response_model=PatientOut, status_code=status.HTTP_201_CREATED)
-def create_patient(payload: PatientCreate, db: Session = Depends(get_db)):
+def create_patient(
+    payload: PatientCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     if payload.email:
         exists = db.query(Patient).filter(Patient.email == payload.email).first()
         if exists:
@@ -32,7 +32,11 @@ def create_patient(payload: PatientCreate, db: Session = Depends(get_db)):
     return obj
 
 @router.get("", response_model=list[PatientOut])
-def list_patients(q: str | None = Query(default=None), db: Session = Depends(get_db)):
+def list_patients(
+    q: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     query = db.query(Patient)
     if q:
         like = f"%{q.lower()}%"
@@ -46,14 +50,23 @@ def list_patients(q: str | None = Query(default=None), db: Session = Depends(get
     return query.order_by(Patient.full_name.asc()).all()
 
 @router.get("/{patient_id}", response_model=PatientOut)
-def get_patient(patient_id: int, db: Session = Depends(get_db)):
+def get_patient(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(404, "Paciente no encontrado")
     return patient
 
 @router.put("/{patient_id}", response_model=PatientOut)
-def update_patient(patient_id: int, payload: PatientUpdate, db: Session = Depends(get_db)):
+def update_patient(
+    patient_id: int,
+    payload: PatientUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(404, "Paciente no encontrado")
@@ -80,11 +93,15 @@ def update_patient(patient_id: int, payload: PatientUpdate, db: Session = Depend
     return patient
 
 @router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_patient(patient_id: int, db: Session = Depends(get_db)):
+def delete_patient(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(404, "Paciente no encontrado")
     
     db.delete(patient)
     db.commit()
-    return None
+    return {"message": "Paciente eliminado exitosamente", "id": patient_id}

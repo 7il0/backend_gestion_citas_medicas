@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     DB_NAME: str = Field(...)
     DB_ECHO: bool = Field(default=False)
     API_PREFIX: str = Field(default="/api/v1")
+    
+    # JWT Security
+    SECRET_KEY: str = Field(...)
+    ALGORITHM: str = Field(default="HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
 
     @property
     def sqlalchemy_database_uri(self) -> str:

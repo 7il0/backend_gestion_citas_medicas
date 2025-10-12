@@ -2,21 +2,21 @@ from fastapi import APIRouter, Depends, status, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from datetime import datetime, date, time, timedelta
-from app.db.session import SessionLocal
+from app.core.deps import get_db, get_current_active_user
 from app.models.doctor import Doctor
 from app.models.appointment import Appointment
+from app.models.user import User
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorOut
 from app.schemas.availability import AvailabilityOut, Slot
 
 router = APIRouter(prefix="/medicos", tags=["medicos"])
 
-def get_db():
-    db = SessionLocal()
-    try: yield db
-    finally: db.close()
-
 @router.post("", response_model=DoctorOut, status_code=status.HTTP_201_CREATED)
-def create_doctor(payload: DoctorCreate, db: Session = Depends(get_db)):
+def create_doctor(
+    payload: DoctorCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     if payload.work_end_hour <= payload.work_start_hour:
         raise HTTPException(400, "work_end_hour debe ser mayor a work_start_hour")
     obj = Doctor(
@@ -30,19 +30,30 @@ def create_doctor(payload: DoctorCreate, db: Session = Depends(get_db)):
     return obj
 
 @router.get("", response_model=list[DoctorOut])
-def list_doctors(db: Session = Depends(get_db)):
+def list_doctors(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     return db.query(Doctor).order_by(Doctor.full_name.asc()).all()
 
 @router.get("/{doctor_id}", response_model=DoctorOut)
-def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
+def get_doctor(
+    doctor_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
     if not doctor:
         raise HTTPException(404, "Médico no encontrado")
     return doctor
 
 @router.get("/{doctor_id}/disponibilidad", response_model=AvailabilityOut)
-def doctor_availability(doctor_id: int, fecha: str = Query(..., description="YYYY-MM-DD"),
-                        db: Session = Depends(get_db)):
+def doctor_availability(
+    doctor_id: int,
+    fecha: str = Query(..., description="YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     doctor = db.query(Doctor).get(doctor_id)
     if not doctor:
         raise HTTPException(404, "Médico no encontrado")
@@ -75,7 +86,12 @@ def doctor_availability(doctor_id: int, fecha: str = Query(..., description="YYY
     return AvailabilityOut(doctor_id=doctor_id, date=fecha, slots=slots)
 
 @router.put("/{doctor_id}", response_model=DoctorOut)
-def update_doctor(doctor_id: int, payload: DoctorUpdate, db: Session = Depends(get_db)):
+def update_doctor(
+    doctor_id: int,
+    payload: DoctorUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
     if not doctor:
         raise HTTPException(404, "Médico no encontrado")
@@ -97,11 +113,15 @@ def update_doctor(doctor_id: int, payload: DoctorUpdate, db: Session = Depends(g
     return doctor
 
 @router.delete("/{doctor_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_doctor(doctor_id: int, db: Session = Depends(get_db)):
+def delete_doctor(
+    doctor_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
     if not doctor:
         raise HTTPException(404, "Médico no encontrado")
     
     db.delete(doctor)
     db.commit()
-    return None
+    return {"message": "Médico eliminado exitosamente", "id": doctor_id}
